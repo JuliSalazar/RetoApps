@@ -1,4 +1,4 @@
-package com.example.retoapps;
+package com.example.retoapps.activity;
 
 import androidx.fragment.app.FragmentActivity;
 
@@ -13,9 +13,13 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.retoapps.model.Position;
+import com.example.retoapps.util.LocationWorker;
+import com.example.retoapps.R;
 import com.example.retoapps.model.Hueco;
 import com.example.retoapps.util.Constants;
 import com.example.retoapps.util.HTTPSWebUtilDomi;
+import com.example.retoapps.util.TrackUsersWorker;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -38,12 +42,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private String username;
     private LocationManager manager;
-    private Marker me;
+    //private Marker me;
     private ArrayList<Marker> points;
     private Button addBtn;
     private TextView advText;
     //Modelar lugares
     private Polygon hueco;
+
+    private LocationWorker locationWorker;
+    private Position currentPosition;
+    private TrackUsersWorker usersWorker;
 
 
     @Override
@@ -69,6 +77,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setMyLocationEnabled(true);
         manager.requestLocationUpdates(LocationManager.GPS_PROVIDER,1000, 2, this);
         setInitialPos();
         mMap.setOnMapClickListener(this);
@@ -88,7 +97,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 String response = https.POSTrequest(Constants.BASEURL+"huecos/"+ hueco.getUsername()+".json", json);
                             }
                     );
-                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(me.getPosition(), 1));
+                    //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(me.getPosition(), 1));
                 }
         );
 
@@ -103,8 +112,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         );
 
+         locationWorker = new LocationWorker(this);
+         locationWorker.start();
+
+         usersWorker = new TrackUsersWorker(this);
+         usersWorker.start();
 
     }
+
+    @Override
+    protected void onDestroy() {
+        locationWorker.finish();
+        usersWorker.finish();
+        super.onDestroy();
+    }
+
     @SuppressLint("MissingPermission")
     public void setInitialPos(){
         Location location = manager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
@@ -124,20 +146,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
     public void updateMyLocation(Location location) {
         LatLng myPos = new LatLng(location.getLatitude(),location.getLongitude());
-        if(me == null){
+       /* if(me == null){
             me =  mMap.addMarker(new MarkerOptions().position(myPos).title("Yo"));
         }else{
             me.setPosition(myPos);
-        }
+        }*/
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(myPos, 15));
-        computeDistances();
+        //computeDistances();
+
+        currentPosition = new Position(location.getLatitude(),location.getLongitude());
+
     }
 
-    private void computeDistances() {
+    /*private void computeDistances() {
         for(int i=0; i <points.size(); i++){
             Marker marker = points.get(i);
             LatLng markerLoc = marker.getPosition();
-            LatLng meLoc = me.getPosition();
+           // LatLng meLoc = me.getPosition();
 
             double meters = SphericalUtil.computeDistanceBetween(markerLoc,meLoc);
             if(meters<50){
@@ -154,7 +179,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             advText.setText("Hueco a "+distanceToHueco+" metros");
         }
 
-    }
+    }*/
 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
@@ -178,8 +203,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-        Marker p =  mMap.addMarker(new MarkerOptions().position(latLng).title("Marcador").snippet("subtitulo"));
-        points.add(p);
+        //Marker p =  mMap.addMarker(new MarkerOptions().position(latLng).title("Marcador").snippet("subtitulo"));
+        //points.add(p);
     }
 
     @Override
@@ -188,5 +213,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Log.e(">>>",marker.getPosition().latitude+","+marker.getPosition().longitude);
         marker.showInfoWindow();
         return false;
+    }
+
+    public Position getCurrentPosition() {
+        return currentPosition;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void updateMarkers(ArrayList<Position> positions){
+        runOnUiThread(
+                ()->{
+
+                    for (int i= 0; i<points.size(); i++){
+                        Marker m = points.get(i);
+                        m.remove();
+                    }
+                    points.clear();
+
+                    for (int i= 0; i<positions.size(); i++){
+                        Marker m = mMap.addMarker(new MarkerOptions().position(new LatLng(positions.get(i).getLat(),positions.get(i).getLng())));
+                        points.add(m);
+                    }
+                }
+        );
+
     }
 }
