@@ -14,14 +14,14 @@ import com.example.retoapps.R;
 import com.example.retoapps.model.User;
 import com.example.retoapps.util.Constants;
 import com.example.retoapps.util.HTTPSWebUtilDomi;
+import com.example.retoapps.util.LocationWorker;
 import com.google.gson.Gson;
-
-import java.util.UUID;
 
 public class LoginActivity extends AppCompatActivity {
 
     private EditText userEt;
     private Button loginBtn;
+    private LocationWorker locationWorker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,7 +29,7 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         userEt = findViewById(R.id.edtusername);
-        loginBtn = findViewById(R.id.sendbtn);
+        loginBtn = findViewById(R.id.sendBtn);
 
         ActivityCompat.requestPermissions(this, new String[]{
                 Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -42,14 +42,13 @@ public class LoginActivity extends AppCompatActivity {
                     if(username.equals("")){
                         Toast.makeText(this, "Ingresa un nombre de usuario",Toast.LENGTH_SHORT).show();
                     }else{
-                        User user = new User(username, UUID.randomUUID().toString());
+                        User user = new User();
                         Gson gson = new Gson();
                         String json = gson.toJson(user);
-
                         HTTPSWebUtilDomi https = new HTTPSWebUtilDomi();
                         new Thread(
                                 ()->{
-                                    String response = https.PUTrequest(Constants.BASEURL+"users/"+user.getName()+".json", json);
+                                    String response = https.PUTrequest(Constants.BASEURL+"users/"+username+".json", json);
                                 }
                         ).start();
 

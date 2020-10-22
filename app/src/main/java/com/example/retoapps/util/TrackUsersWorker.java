@@ -1,8 +1,11 @@
 package com.example.retoapps.util;
 
+import android.util.Log;
+
 import com.example.retoapps.activity.MapsActivity;
 import com.example.retoapps.model.Position;
 import com.example.retoapps.model.PositionContainer;
+import com.example.retoapps.model.User;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -25,18 +28,23 @@ public class TrackUsersWorker extends Thread {
         HTTPSWebUtilDomi https = new HTTPSWebUtilDomi();
         Gson gson = new Gson();
         while (isAlive){
-            delay(5000);
+            delay(3000);
             String json = https.GETrequest(Constants.BASEURL+"users.json");
-            Type type = new TypeToken<HashMap<String, PositionContainer>>(){}.getType();
-            HashMap<String, PositionContainer> users = gson.fromJson(json, type);
-            ArrayList<Position> positions = new ArrayList<>();
-            users.forEach((key,value)->{
-                PositionContainer positionContainer = value;
-                double lat = positionContainer.getLocation().getLat();
-                double lng = positionContainer.getLocation().getLng();
-                positions.add(new Position(lat,lng));
-            });
-            ref.updateMarkers(positions);
+            //Log.e("AQUI2", json);
+                Type type = new TypeToken< HashMap<String, PositionContainer> >(){}.getType();
+                HashMap<String, PositionContainer> users = gson.fromJson(json, type);
+
+                ArrayList<User> usersArray = new ArrayList<>();
+                users.forEach((key,value)->{
+                    PositionContainer positionContainer = value;
+                    User user = new User(key, positionContainer);
+                    double lat = user.getContainer().getLocation().getLat();
+                    double lng = user.getContainer().getLocation().getLng();
+                    user.getContainer().setLocation(new Position(lat,lng));
+                    usersArray.add(user);
+                });
+                ref.updateMarkers(usersArray);
+
         }
     }
 

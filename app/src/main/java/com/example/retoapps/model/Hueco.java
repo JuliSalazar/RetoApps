@@ -3,31 +3,31 @@ package com.example.retoapps.model;
 public class Hueco {
     private String id;
     private String direction;
-    private String lati;
-    private String longi;
-    private String username;
+    private double lati;
+    private double longi;
+    private String estado;
 
     public Hueco() {
     }
 
-    public Hueco(String id, String direction, String lati, String longi, String username) {
+    public Hueco(String id, String direction, double lati, double longi, String estado) {
         this.id = id;
         this.direction = direction;
         this.lati = lati;
         this.longi = longi;
-        this.username = username;
+        this.estado = estado;
     }
 
     public String getId() {
         return id;
     }
 
-    public String getUsername() {
-        return username;
+    public String getEstado() {
+        return estado;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setEstado(String estado) {
+        this.estado = estado;
     }
 
     public void setId(String id) {
@@ -42,19 +42,4 @@ public class Hueco {
         this.direction = direction;
     }
 
-    public String getLati() {
-        return lati;
-    }
-
-    public void setLati(String lati) {
-        this.lati = lati;
-    }
-
-    public String getLongi() {
-        return longi;
-    }
-
-    public void setLongi(String longi) {
-        this.longi = longi;
-    }
 }

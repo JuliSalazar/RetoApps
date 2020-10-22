@@ -19,7 +19,7 @@ public class LocationWorker extends Thread {
         HTTPSWebUtilDomi https = new HTTPSWebUtilDomi();
         Gson gson = new Gson();
         while (isAlive){
-            delay(10000);
+            delay(2000);
             //Put de nuestra posicion
             if(ref.getCurrentPosition()!=null){
                 https.PUTrequest(Constants.BASEURL+"users/"+ref.getUsername()+"/location.json", gson.toJson(ref.getCurrentPosition()));

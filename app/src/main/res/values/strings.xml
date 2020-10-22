@@ -1,4 +1,15 @@
 <resources>
     <string name="app_name">RetoApps</string>
     <string name="title_activity_maps">Map</string>
+
+    <string name="title">Huecos en la ciudad</string>
+    <string name="username">Nombre de usuario</string>
+    <string name="log">Ingresar</string>
+
+    <string name="report">Reportar hueco</string>
+    <string name="add">Agregar un hueco</string>
+    <string name="coord">Coordenada:</string>
+    <string name="direc">Dirección:</string>
+    <string name="ok">Enviar</string>
+
 </resources>

@@ -2,16 +2,24 @@ package com.example.retoapps.model;
 
 public class User {
 
-    public String name;
-    public String id;
+    private PositionContainer container;
+    private String name;
 
     public User() {
 
     }
 
-    public User(String name, String id) {
+    public User(String name, PositionContainer cont) {
         this.name = name;
-        this.id = id;
+        this.container = cont;
+    }
+
+    public PositionContainer getContainer() {
+        return container;
+    }
+
+    public void setContainer(PositionContainer container) {
+        this.container = container;
     }
 
     public String getName() {
@@ -20,13 +28,5 @@ public class User {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 }

@@ -38,9 +38,8 @@
 
         <activity
             android:name=".activity.MapsActivity"
-            android:label="@string/title_activity_maps">
-
-        </activity>
+            android:theme="@style/popUp"
+            android:label="@string/title_activity_maps"></activity>
     </application>
 
 </manifest>
