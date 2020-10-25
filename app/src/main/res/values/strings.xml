@@ -12,4 +12,6 @@
     <string name="direc">Dirección:</string>
     <string name="ok">Enviar</string>
 
+    <string name="confirm">Confirmar</string>
+
 </resources>

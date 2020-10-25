@@ -1,12 +1,11 @@
 package com.example.retoapps.activity;
 
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.FragmentActivity;
 
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
-import android.content.Intent;
-import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -15,7 +14,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.example.retoapps.model.Position;
 import com.example.retoapps.model.User;
@@ -24,6 +22,7 @@ import com.example.retoapps.R;
 import com.example.retoapps.model.Hueco;
 import com.example.retoapps.util.Constants;
 import com.example.retoapps.util.HTTPSWebUtilDomi;
+import com.example.retoapps.util.TrackHuecosWorker;
 import com.example.retoapps.util.TrackUsersWorker;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -33,14 +32,14 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polygon;
-import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.gson.Gson;
-import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener, GoogleMap.OnMarkerClickListener {
@@ -50,23 +49,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LocationManager manager;
     private Marker me;
     private ArrayList<Marker> markerUsers;
+    private ArrayList<Marker> markerHuecos;
+    private ArrayList<Hueco> huecosArray;
     private Button addBtn;
     private TextView advText;
 
     private AlertDialog.Builder dialogB;
     private AlertDialog dialog;
 
+    private TextView coord;
+    private TextView direc;
 
+    private boolean paraConfirm;
 
     private Button send;
 
 
     //Modelar lugares
-    private ArrayList<Polygon> huecos;
+    //private ArrayList<Polygon> huecos;
 
     private LocationWorker locationWorker;
     private Position currentPosition;
     private TrackUsersWorker usersWorker;
+    private TrackHuecosWorker huecosWorker;
+
+    private Hueco huecoProv;
 
 
     @Override
@@ -76,61 +83,57 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         username = getIntent().getExtras().getString("username");
         markerUsers = new ArrayList<>();
-        huecos = new ArrayList<>();
+        markerHuecos = new ArrayList<>();
+        huecosArray = new ArrayList<>();
         addBtn = findViewById(R.id.addBtn);
-        //send = findViewById(R.id.sendBtn);
         advText = findViewById(R.id.adviceText);
-
-
+        manager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        paraConfirm = false;
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        manager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
     }
-
-
     @SuppressLint("MissingPermission")
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        mMap.setMyLocationEnabled(true);
+        //mMap.setMyLocationEnabled(true);
         manager.requestLocationUpdates(LocationManager.GPS_PROVIDER,1000, 2, this);
         setInitialPos();
         mMap.setOnMapClickListener(this);
         mMap.setOnMapLongClickListener(this);
         mMap.setOnMarkerClickListener(this);
-        if(markerUsers !=null){
-            for (int i= 0; i<markerUsers.size(); i++) {
-                Marker u = markerUsers.get(i);
-                u.showInfoWindow();
-            }
-        }
 
-        if(huecos !=null){
-            for (int i= 0; i<huecos.size(); i++) {
-                Polygon u = huecos.get(i);
-                //u.
-            }
-        }
+        huecosWorker = new TrackHuecosWorker(this);
+        huecosWorker.start();
+
+        locationWorker = new LocationWorker(this);
+        locationWorker.start();
+
+        usersWorker = new TrackUsersWorker(this);
+        usersWorker.start();
+
         addBtn.setOnClickListener(
                 (v)->{
-                    popUp();
+                    if(paraConfirm){
+                        Gson gson = new Gson();
+                        HTTPSWebUtilDomi https = new HTTPSWebUtilDomi();
+                        huecoProv.setConfirmado(true);
+                        String json = gson.toJson(huecoProv);
+                        new Thread(
+                                ()->{
+                                    String response = https.PUTrequest(Constants.BASEURL+"huecos/"+ huecoProv.getId() +".json", json);
+                                }
+                        ).start();
+                    }else {
+                        popUp();
+                    }
                 }
-
         );
-
-
-
-
-         locationWorker = new LocationWorker(this);
-         locationWorker.start();
-
-         usersWorker = new TrackUsersWorker(this);
-         usersWorker.start();
-
     }
     public void popUp(){
         dialogB = new AlertDialog.Builder(this);
@@ -140,47 +143,71 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         dialog = dialogB.create();
         dialog.show();
 
+        coord = popUpView.findViewById(R.id.coord);
+        direc = popUpView.findViewById(R.id.direct);
+
+        coord.setText(me.getPosition().latitude + ", " + me.getPosition().longitude);
+        String direc = getCityName(new LatLng(me.getPosition().latitude , me.getPosition().longitude ));
+
+
         send.setOnClickListener(
                 (v)->{
                     Gson gson = new Gson();
                     HTTPSWebUtilDomi https = new HTTPSWebUtilDomi();
-                    double space = 0.00002;
                     if(me !=null){
                         me.getTitle();
                         me.showInfoWindow();
-                        Hueco hueco = new Hueco(UUID.randomUUID().toString(), "una dirección", me.getPosition().latitude, me.getPosition().latitude, "No confirmado");
+                        Position pos = new Position(me.getPosition().latitude, me.getPosition().longitude);
+                        Hueco hueco = new Hueco(username, direc, false, pos.getLat(), pos.getLng(), UUID.randomUUID().toString());
                         String json = gson.toJson(hueco);
-                        huecos.add(
-                                mMap.addPolygon(
-                                        new PolygonOptions()
-                                                .add(new LatLng(me.getPosition().latitude + space, me.getPosition().longitude - space))
-                                                .add(new LatLng(me.getPosition().latitude + space, me.getPosition().longitude + space))
-                                                .add(new LatLng(me.getPosition().latitude - space, me.getPosition().longitude + space))
-                                                .add(new LatLng(me.getPosition().latitude - space, me.getPosition().longitude - space))
-                                                .add(new LatLng(me.getPosition().latitude + space, me.getPosition().longitude - space))
-                                                .fillColor(Color.argb(10,255,0,0))
-                                                .strokeColor(Color.BLACK)
-                                )
-                        );
-
                         new Thread(
                                 ()->{
-                                    String response = https.POSTrequest(Constants.BASEURL+"huecos/"+ hueco.getId()+".json", json);
+                                    String response = https.PUTrequest(Constants.BASEURL+"huecos/"+ hueco.getId() +".json", json);
                                 }
                         ).start();
                     }
-
                     //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(me.getPosition(), 1));
                     dialog.dismiss();
                 }
         );
     }
 
+    public String getCityName(LatLng coordenadas){
+        String direccion = "";
+        Geocoder geocoder = new Geocoder( this, Locale.getDefault());
+        try {
+            List<Address> directions = geocoder.getFromLocation(me.getPosition().latitude,me.getPosition().longitude,  1);
+             direccion = directions.get(0).getAddressLine(0);
+            direc.setText(direccion);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return direccion;
+    }
+
     @Override
     protected void onDestroy() {
-        locationWorker.finish();
-        usersWorker.finish();
         super.onDestroy();
+        new Thread(
+                ()->{
+                    HTTPSWebUtilDomi https = new HTTPSWebUtilDomi();
+                    usersWorker.finish();
+                    locationWorker.finish();
+                    try {
+                        Thread.sleep(3000);
+                        String response = https.DELETErequest(Constants.BASEURL+"users/"+ username +".json");
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+        ).start();
+        huecosWorker.finish();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
     }
 
     @SuppressLint("MissingPermission")
@@ -190,97 +217,89 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             updateMyLocation(location);
         }
     }
+    @SuppressLint("ResourceAsColor")
+    private void options(Hueco hue, double min){
+        if ((hue.getName().compareTo(username)) != 0) {
+            confimarHueco(hue);
+            if (hue.isConfirmado()) {
+                addBtn.setTextColor(getResources().getColor(R.color.colorEnable,getTheme()));
+                addBtn.setEnabled(false);
+                addBtn.setText("Hueco confirmado");
+                paraConfirm = false;
+            }
+        } else {
+            addBtn.setTextColor(getResources().getColor(R.color.colorEnable,getTheme()));
+            addBtn.setEnabled(false);
+            addBtn.setText("Reportado por ti");
+            paraConfirm = false;
+        }
+    }
+    @SuppressLint("ResourceAsColor")
+    private void computeDistances() {
+        if (markerHuecos != null) {
+            double distanceToHueco = 100000000;
+            for (int i = 0; i < markerHuecos.size(); i++) {
+
+                Hueco hue = huecosWorker.getHuecosArray().get(i);
+                LatLng huecoLoc = new LatLng(hue.getLat(),hue.getLng());
+                LatLng meLoc = me.getPosition();
+                double meters = SphericalUtil.computeDistanceBetween(huecoLoc, meLoc);
+
+                distanceToHueco = Math.min(meters, distanceToHueco);
+                advText.setText("Hueco a " + (int) distanceToHueco + " metros");
+
+                if(distanceToHueco <5){
+                    options(hue,distanceToHueco);
+                    return;
+                }else {
+                    addBtn.setTextColor(getResources().getColor(R.color.colorWhite,getTheme()));
+                    addBtn.setEnabled(true);
+                    addBtn.setText("Reportar hueco");
+                    paraConfirm = false;
+                }
+            }
+        }
+    }
+    @SuppressLint("ResourceAsColor")
+    public void confimarHueco(Hueco h){
+        addBtn.setTextColor(getResources().getColor(R.color.colorWhite,getTheme()));
+        addBtn.setEnabled(true);
+        addBtn.setText("Confirmar Hueco");
+        paraConfirm = true;
+        huecoProv = h;
+    }
 
     @Override
     public void onLocationChanged(Location location) {
         updateMyLocation(location);
-        if(huecos !=null){
-            for (int i= 0; i<huecos.size(); i++) {
-                Polygon h = huecos.get(i);
-                boolean iamAtHueco = PolyUtil.containsLocation(new LatLng(location.getLatitude(),location.getLongitude()), h.getPoints(), false);
-                if(iamAtHueco){
-                    Log.e("AQUI", "ESTOY DENTRO DE UN HUECO");
-                    //addBtn.setText("Adentro");
-                }
-            }
-        }
-
 
 
     }
+
     public void updateMyLocation(Location location) {
         LatLng myPos = new LatLng(location.getLatitude(),location.getLongitude());
-        /*if(me == null){
-            me =  mMap.addMarker(new MarkerOptions().position(myPos).title("Yo"));
-            me.showInfoWindow();
-        }else{
-            me.setPosition(myPos);
-        }*/
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(myPos, 19));
-        computeDistances();
-
-
         currentPosition = new Position(location.getLatitude(),location.getLongitude());
-
+        computeDistances();
     }
 
-    private void computeDistances() {
-       /* for(int i=0; i <points.size(); i++){
-            Marker marker = points.get(i);
-            LatLng markerLoc = marker.getPosition();
-           // LatLng meLoc = me.getPosition();
-
-            double meters = SphericalUtil.computeDistanceBetween(markerLoc,meLoc);
-            if(meters<50){
-                addBtn.setText("Usted está pisando un marcador");
-            }
-        }*/
-        if(huecos != null){
-            double distanceToHueco = 100000;
-            for (int i=0; i<huecos.size(); i++){
-                Polygon hueco = huecos.get(i);
-                for (int j=0; j<hueco.getPoints().size(); j++) {
-                    LatLng punto = hueco.getPoints().get(i);
-                    double meters = SphericalUtil.computeDistanceBetween(punto, me.getPosition());
-                    distanceToHueco = Math.min(meters, distanceToHueco);
-                }
-            }
-            advText.setText("Hueco a "+(int) distanceToHueco+" metros");
-        }
-
-    }
 
     @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
-
+    public void onStatusChanged(String provider, int status, Bundle extras) { }
     @Override
-    public void onProviderEnabled(String provider) {
-
-    }
-
+    public void onProviderEnabled(String provider) { }
     @Override
-    public void onProviderDisabled(String provider) {
-
-    }
-
+    public void onProviderDisabled(String provider) { }
     @Override
     public void onMapClick(LatLng latLng) {
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
     }
 
     @Override
-    public void onMapLongClick(LatLng latLng) {
-        //Marker p =  mMap.addMarker(new MarkerOptions().position(latLng).title("Marcador").snippet("subtitulo"));
-        //points.add(p);
-    }
+    public void onMapLongClick(LatLng latLng) {}
 
     @Override
     public boolean onMarkerClick(Marker marker) {
-        //Toast.makeText(this,marker.getPosition().latitude+","+marker.getPosition().longitude, Toast.LENGTH_LONG).show();
-        //Log.e(">>>",marker.getPosition().latitude+","+marker.getPosition().longitude);
-
         return false;
     }
 
@@ -291,23 +310,47 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public String getUsername() {
         return username;
     }
-
-    public void updateMarkers(ArrayList<User> usersArray){
+    public void updateMarkersHuecos(ArrayList<Hueco> huecosA){
         runOnUiThread(
                 ()->{
+                        for (int i= 0; i<markerHuecos.size(); i++){
+                            Marker m = markerHuecos.get(i);
+                            m.remove();
+                        }
+                        markerHuecos.clear();
 
+                        for (int i= 0; i<huecosA.size(); i++){
+                            Hueco h = huecosA.get(i);
+                            LatLng latLng = new LatLng(h.getLat(), h.getLng());
+                            Marker m = null;
+                            if (h.isConfirmado() == true) {
+                                m = mMap.addMarker(new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.huecosi)));
+                            } else if (h.isConfirmado() == false) {
+                                m = mMap.addMarker(new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.huecono)));
+                            }
+                            markerHuecos.add(m);
+                        }
+                    }
+
+        );
+
+    }
+
+    public void updateMarkers(ArrayList<User> usersA){
+        runOnUiThread(
+                ()->{
                     for (int i= 0; i<markerUsers.size(); i++){
                         Marker m = markerUsers.get(i);
                         m.remove();
                     }
                     markerUsers.clear();
 
-                    for (int i= 0; i<usersArray.size(); i++){
-                        User u = usersArray.get(i);
+                    for (int i= 0; i<usersA.size(); i++){
+                        User u = usersA.get(i);
                         Position pos = u.getContainer().getLocation();
                         LatLng latLng = new LatLng(pos.getLat(), pos.getLng());
                         if(u.getName().equals(username)){
-                            me = mMap.addMarker(new MarkerOptions().position(latLng).title("Yo" + u.getName()));
+                            me = mMap.addMarker(new MarkerOptions().position(latLng).title("Yo " + u.getName()));
                             markerUsers.add(me);
                         }else{
                             Marker m = mMap.addMarker(new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))

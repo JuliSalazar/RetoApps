@@ -14,7 +14,6 @@
     </style>
     
     <style name="popUp" parent="Widget.AppCompat.PopupWindow">
-
     </style>
 
 </resources>

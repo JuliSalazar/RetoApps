@@ -30,21 +30,20 @@ public class TrackUsersWorker extends Thread {
         while (isAlive){
             delay(3000);
             String json = https.GETrequest(Constants.BASEURL+"users.json");
-            //Log.e("AQUI2", json);
                 Type type = new TypeToken< HashMap<String, PositionContainer> >(){}.getType();
                 HashMap<String, PositionContainer> users = gson.fromJson(json, type);
-
+            if(users != null) {
                 ArrayList<User> usersArray = new ArrayList<>();
-                users.forEach((key,value)->{
+                users.forEach((key, value) -> {
                     PositionContainer positionContainer = value;
                     User user = new User(key, positionContainer);
                     double lat = user.getContainer().getLocation().getLat();
                     double lng = user.getContainer().getLocation().getLng();
-                    user.getContainer().setLocation(new Position(lat,lng));
+                    user.getContainer().setLocation(new Position(lat, lng));
                     usersArray.add(user);
                 });
                 ref.updateMarkers(usersArray);
-
+            }
         }
     }
 
