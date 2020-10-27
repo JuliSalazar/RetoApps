@@ -195,7 +195,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     usersWorker.finish();
                     locationWorker.finish();
                     try {
-                        Thread.sleep(3000);
+                        Thread.sleep(4000);
                         String response = https.DELETErequest(Constants.BASEURL+"users/"+ username +".json");
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -272,15 +272,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onLocationChanged(Location location) {
         updateMyLocation(location);
-
-
     }
 
     public void updateMyLocation(Location location) {
         LatLng myPos = new LatLng(location.getLatitude(),location.getLongitude());
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(myPos, 19));
         currentPosition = new Position(location.getLatitude(),location.getLongitude());
-        computeDistances();
     }
 
 
@@ -329,6 +326,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 m = mMap.addMarker(new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.huecono)));
                             }
                             markerHuecos.add(m);
+
                         }
                     }
 
@@ -359,6 +357,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         }
 
                     }
+                    computeDistances();
 
                 }
         );
